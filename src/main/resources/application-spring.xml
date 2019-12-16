@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:cnontext="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx" xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+
+    <cnontext:component-scan base-package="cn.edu.aynu">
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </cnontext:component-scan>
+
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${jdbc.driver}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+
+    <bean id="mySqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="sqlSessionFactoryBeanName" value="mySqlSessionFactory"/>
+        <property name="basePackage" value="cn.edu.aynu.dao"/>
+    </bean>
+
+<!--    为数据源配合事务管理器-->
+    <bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+<!--    编写通知 声明事务-->
+    <tx:advice id="myAdvice" transaction-manager="txManager">
+        <tx:attributes>
+<!--            表示任意方法-->
+<!--            当发生异常的时候进行回滚-->
+            <tx:method name="*" isolation="DEFAULT" propagation="REQUIRED" rollback-for="Exception"/>
+        </tx:attributes>
+    </tx:advice>
+
+<!--    编写aop, 让spring自动对目标对象生成代理, 需要使用aspect表达式-->
+    <aop:config>
+<!--        定义切入点-->
+<!--        事务管理器的管理范围-->                       <!-- 返回类型 *.*.全限定方法名(..) 抛出的异常 -->
+        <aop:pointcut id="txPointCut" expression="execution(* cn.edu.aynu.service.Impl.*.*(..))"/>
+<!--        切面-->
+        <aop:advisor advice-ref="myAdvice" pointcut-ref="txPointCut"/>
+    </aop:config>
+
+
+
+</beans>
